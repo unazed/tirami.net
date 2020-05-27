@@ -134,14 +134,16 @@ class WebsocketClient:
                         )
                     }))
                     return
-                elif not username or any(c not in string.ascii_letters + string.digits for c in username):
+                elif not username or any(
+                    c not in string.ascii_letters + string.digits + "_" for c in username
+                    ):
                     self.trans.write(self.packet_ctor.construct_response({
                         "action": "do_load",
                         "data": self.server.read_file(
                             server_constants.SUPPORTED_WS_EVENTS['register_fail'],
                             format={
                                 "$$object": "username",
-                                "$$reason": '"username must be alphanumeric"'
+                                "$$reason": '"username must be [a-zA-Z0-9_]"'
                             }
                         )
                     }))
