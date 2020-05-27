@@ -60,6 +60,7 @@ class WebsocketClient:
             print("finished receiving, length =", len(data['data']))
 
         if data['opcode'] == 0x08:
+            print("received close frame")
             self.trans.close()
             return
         elif data['opcode'] == 0x01:
@@ -337,7 +338,9 @@ class WebsocketClient:
                 }))
                 self.authentication = {}
         else:
-            print("GOT WEIRD OPCODE", hex(data['opcode']))
+            print("received weird opcode, closing for inspection",
+                    hex(data['opcode']))
+            self.trans.close()
 
     def on_close(self, prot, addr, reason):
         print(f"closed websocket with {addr[0]!r}, reason={reason!r}")
