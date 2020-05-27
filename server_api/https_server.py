@@ -45,6 +45,7 @@ def fulfill_websocket_extensions(extension, params):
             if "client_max_window_bits" in param:
                 del params[idx]
         params.append(f"server_max_window_bits={zlib.MAX_WBITS}")
+        params.append(f"client_max_window_bits={zlib.MAX_WBITS}")
 
 
 def parse_websocket_parameters(params):
@@ -309,7 +310,7 @@ class HttpsServer(SocketServer):
         if agreed_extensions:
             data.update({
                 "sec-websocket-extensions": ', '.join(
-                    f"{ext}" + ("; " + '; '.join(params)) if params else "" for ext, params in agreed_extensions.items()
+                    f"{ext}" + ("; " + '; '.join(params) if params else "") for ext, params in agreed_extensions.items()
                 )
             })
             print("LOOL", data)

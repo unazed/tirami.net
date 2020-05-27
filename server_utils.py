@@ -3,12 +3,12 @@ import json
 from server_api.websocket_interface import WebsocketPacket
 
 
-def ensure_contains(trans, data, keys):
+def ensure_contains(self, data, keys):
     ret = []
     for key in keys:
         if key not in data:
-            trans.write(WebsocketPacket.construct_response({
-                "error": f"{escape(key)!r} not passed"
+            self.trans.write(self.packet_ctor.construct_response({
+                "error": f"no {escape(key)!r} passed"
             }))
             return False
         ret.append(data[key])

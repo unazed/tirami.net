@@ -85,7 +85,7 @@ class WebsocketClient:
                 self.trans.write(self.packet_ctor.construct_response({
                     "error": "client sent invalid JSON"
                 }))
-                raise
+                return
 
             if (action := content.get("action")) is None:
                 self.trans.write(self.packet_ctor.construct_response({
@@ -100,7 +100,7 @@ class WebsocketClient:
 
             if action == "event_handler":
                 if not (event_name := server_utils.ensure_contains(
-                        self.trans, content, ("name",)
+                        self, content, ("name",)
                         )):
                     return
                 event_name = event_name[0]
