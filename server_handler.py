@@ -31,7 +31,6 @@ class WebsocketClient:
         self.packet_ctor = WebsocketPacket(None, self.comp)
 
         self.authentication = server.authentication = {}
-wha
         self.__is_final = True
         self.__data_buffer = ""
 
