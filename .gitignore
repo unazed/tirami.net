@@ -1,2 +1,3 @@
 logins.db
 __pycache__/
+.ssl/
