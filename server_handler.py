@@ -31,8 +31,20 @@ class WebsocketClient:
         self.packet_ctor = WebsocketPacket(None, self.comp)
 
         self.authentication = server.authentication = {}
+        self.chat_initialized = False
         self.__is_final = True
         self.__data_buffer = ""
+
+    def broadcast_message(self, message_obj):
+        if not self.chat_initialized:
+            return
+        for ws_client in self.server.clients.values():
+            if not ws_client.chat_initialized:
+                continue
+            ws_client.trans.write(ws_client.packet_ctor.construct_response({
+                "action": "on_message",
+                "message": message_obj
+            }))
 
     def __call__(self, prot, addr, data):
         if self.authentication and self.authentication['username'] not in self.server.logins:
@@ -200,6 +212,10 @@ class WebsocketClient:
                             }
                         )
                 }))
+                self.broadcast_message({
+                    "username": username,
+                    "content": escape(f"registered new account")
+                })
                 server_utils.commit_logins(self.server)
             elif action == "login":
                 if self.authentication:
@@ -241,6 +257,10 @@ class WebsocketClient:
                         "token": tok
                     }
                     print(f"{user!r} logged in via token")
+                    self.broadcast_message({
+                        "username": user,
+                        "content": escape(f"logged in with token")
+                    })
                     return
                 if not (res := server_utils.ensure_contains(
                         self.trans, content, ("username", "password")
@@ -258,7 +278,6 @@ class WebsocketClient:
                     return
                 username, password = res
                 if username not in self.server.logins:
-                    print(len(username))
                     self.trans.write(self.packet_ctor.construct_response({
                         "action": "do_load",
                         "data": self.server.read_file(
@@ -301,6 +320,10 @@ class WebsocketClient:
                 self.server.logins[username].update({
                     "active_token": tok
                 })
+                self.broadcast_message({
+                    "username": username,
+                    "content": escape(f"logged in")
+                })
                 server_utils.commit_logins(self.server)
             elif action == "logout":
                 if not self.authentication:
@@ -326,7 +349,25 @@ class WebsocketClient:
                         }
                     )
                 }))
+                self.broadcast_message({
+                    "username": self.authentication['username'],
+                    "content": "logged out"
+                })
                 self.authentication = {}
+            elif action == "initialize_chat":
+                if self.chat_initialized:
+                    self.trans.write(self.packet_ctor.construct_response({
+                        "error": "attempted to reinitialize chat, refresh"
+                    }))
+                    return
+                self.chat_initialized = True
+                username = self.authentication.get("username", "Guest")
+                self.broadcast_message({
+                    "username": "SYSTEM",
+                    "content": escape(
+                        f"{username} joined"
+                        )
+                })
         else:
             print("received weird opcode, closing for inspection",
                     hex(data['opcode']))

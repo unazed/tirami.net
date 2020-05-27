@@ -27,6 +27,17 @@ function display_notif(message, type) {
   );
 }
 
+function add_message(message_obj) {
+  console.log("got message", message_obj);
+  $("#chatbox").append(
+    $("<div></div>").addClass("chatbox-message").append(
+      $("<label></label").addClass("chatbox-username").text(message_obj.username + ":"),
+      $("<label></label>").addClass("chatbox-message").text(message_obj.content)
+        .css(message_obj.properties === undefined? {}: message_obj.properties)
+    )
+  );
+}
+
 function handle_ws_message(event) {
   let content = JSON.parse(event.data);
   if (content.error) {
@@ -52,6 +63,8 @@ function handle_ws_message(event) {
       action: "event_handler",
       name: "home"
     }));
+  } else if (content.action === "on_message") {
+    add_message(content.message);
   } else if (content.warning) {
     display_notif(content.warning, "warning");
   }
@@ -79,6 +92,9 @@ $(window).on("load", function() {
     ws.send(JSON.stringify({
       action: "event_handler",
       name: "home"
+    }));
+    ws.send(JSON.stringify({
+      action: "initialize_chat"
     }));
     window.nav_update = setInterval(function() {
       ws.send(JSON.stringify({

@@ -37,7 +37,18 @@ div#error_div p img {
   padding-left: 1em !important;
 }
 
-div#main_container {
+div#main_container, div#chatbox {
   margin: 1em;
   padding: 5px;
+  flex: 1;
+}
+
+div#chatbox {
+  margin-left: 0;
+  width: 27%;
+  flex: initial;
+}
+
+.chatbox-username {
+  margin-right: 5px;
 }

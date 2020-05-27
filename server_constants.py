@@ -25,7 +25,8 @@ SUPPORTED_WS_ACTIONS = [
     "event_handler",
     "register",
     "login", "logout",
-    "navigation"
+    "navigation",
+    "initialize_chat"
 ]
 
 SUPPORTED_WS_EVENTS = {
