@@ -19,16 +19,12 @@ ZLIB_EMPTY_BLOCK = b"\0\0\xff\xff"
 
 
 class CompressorSession:
-    def __init__(self, wbits=zlib.MAX_WBITS, compresslevel=9):
+    def __init__(self, wbits=zlib.MAX_WBITS):
         self.compressor = zlib.compressobj(
-            compresslevel,
-            zlib.DEFLATED,
-            -wbits,
-            zlib.DEF_MEM_LEVEL,
-            0
+            wbits=-wbits,
         )
         self.decompressor = decompress = zlib.decompressobj(
-            -wbits
+            wbits=-wbits
         )
 
     def inflate(self, data):
