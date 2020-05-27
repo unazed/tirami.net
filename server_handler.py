@@ -27,7 +27,10 @@ class WebsocketClient:
         self.comp = None
         if (param := extensions.get("permessage-deflate")) is not None:
             print("creating compression object")
-            self.comp = CompressorSession(int(param[0].split("=")[1]))
+            if not param:
+                self.comp = CompressorSession()
+            else:
+                self.comp = CompressorSession(int(param[0].split("=")[1]))
         self.packet_ctor = WebsocketPacket(None, self.comp)
 
         self.authentication = server.authentication = {}

@@ -19,7 +19,7 @@ ZLIB_EMPTY_BLOCK = b"\0\0\xff\xff"
 
 
 class CompressorSession:
-    def __init__(self, wbits, compresslevel=9):
+    def __init__(self, wbits=zlib.MAX_WBITS, compresslevel=9):
         self.compressor = zlib.compressobj(
             compresslevel,
             zlib.DEFLATED,

@@ -10,6 +10,7 @@ import os
 import sys
 import time
 import types
+import pprint
 import htmlmin
 import zlib
 from .socket_server import SocketServer
@@ -38,15 +39,17 @@ sys.excepthook = global_exception_handler
 
 
 def fulfill_websocket_extensions(extension, params):
-    if extension == "permessage-deflate" and params:
+    print(params)
+    if extension == "permessage-deflate":
         for idx, param in enumerate(params):
-            if param == "client_max_window_bits":
-                params[idx] = f"server_max_window_bits={zlib.MAX_WBITS}"
+            if "client_max_window_bits" in param:
+                del params[idx]
+        params.append(f"server_max_window_bits={zlib.MAX_WBITS}")
 
 
 def parse_websocket_parameters(params):
     if not params:
-        return {}
+        return []
     result = []
     for param in params:
         if '=' in param:
@@ -222,7 +225,7 @@ class HttpsServer(SocketServer):
             }
 
         # upgrade connection, if necessary
-        if headers.get("connection") == "Upgrade":
+        if "upgrade" in headers.get("connection").lower():
             if (upgrade_method := headers.get("upgrade")) is None:
                 server.trans.write(self.construct_response("Bad Request",
                     error_body="<p>Connection requested to be upgraded, "
@@ -251,8 +254,8 @@ class HttpsServer(SocketServer):
                 server.trans.close()
                 return
             print(f"upgrading connection to {upgrade_method!r}")
-            if not upgrade_fn(metadata):    # ideally, the upgrading function
-                return                      # should handle closing
+            upgrade_fn(metadata)
+            return
             # this doesn't necessarily mean failure
         print(f"{method['method']} {method['path']}")
         resp = route['function'](
@@ -309,6 +312,7 @@ class HttpsServer(SocketServer):
                     f"{ext}" + ("; " + '; '.join(params)) if params else "" for ext, params in agreed_extensions.items()
                 )
             })
+            print("LOOL", data)
         trans.write(self.construct_response("Switching Protocols", data))
         self.websocket_clients.append(trans)
         prot = trans.get_protocol()
