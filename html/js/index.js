@@ -48,6 +48,10 @@ function handle_ws_message(event) {
       window.sessionStorage.setItem("username", content.data.username);
       window.sessionStorage.setItem("token", content.data.token);
     }
+    window.ws.send(JSON.stringify({
+      action: "event_handler",
+      name: "home"
+    }));
   } else if (content.warning) {
     display_notif(content.warning, "warning");
   }

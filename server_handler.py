@@ -301,16 +301,6 @@ class WebsocketClient:
                 self.server.logins[username].update({
                     "active_token": tok
                 })
-                self.trans.write(self.packet_ctor.construct_response({
-                    "action": "do_load",
-                    "data": server.read_file(
-                        server_constants.SUPPORTED_WS_EVENTS['home'],
-                        format={
-                            "$$username": f'"{username}"',
-                            "$$auth_token": f'"{tok}"'
-                            }
-                        )
-                }))
                 server_utils.commit_logins(self.server)
             elif action == "logout":
                 if not self.authentication:
