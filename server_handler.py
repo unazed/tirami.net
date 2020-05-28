@@ -26,11 +26,11 @@ class WebsocketClient:
 
         self.comp = None
         if (params := extensions.get("permessage-deflate")) is not None:
-            print("creating compression object")
             if (wbits := params.get("server_max_window_bits")) is None:
                 self.comp = CompressorSession()
             else:
                 self.comp = CompressorSession(int(wbits))
+            print("creating compression object, wbits =", wbits)
         self.packet_ctor = WebsocketPacket(None, self.comp)
 
         self.authentication = server.authentication = {}
@@ -64,6 +64,9 @@ class WebsocketClient:
         if self.__data_buffer:
             data = self.__data_buffer
         data = self.packet_ctor.parse_packet(data)
+        if data['extra']:
+            print("leading packet found, parsing and processing")
+            self.__call__(prot, addr, data['extra'])
         self.__is_final = data['is_final']
         if not self.__is_final:
             print("receiving data fragments")
@@ -406,7 +409,7 @@ def preinit_whitelist(server, addr):
 
 server = HttpsServer(
     root_directory="html/",
-    host="", port=6969,
+    host="", port=443,
     cert_chain=".ssl/tirami.net.pem",
     priv_key=".ssl/tirami.net.key",
     callbacks={

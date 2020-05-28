@@ -115,6 +115,10 @@ class WebsocketPacket:
                 data.pop(0)
                 for _ in range(2 if length == 126 else 8)
             ])
+        extra = ""
+        if length != len(data) - (4 if mask else 0):
+            data, extra = data[:length + (4 if mask else 0)], data[length + (4 if mask else 0):]
+
         if mask:
             masking_key = [
                 data.pop(0)
@@ -123,14 +127,14 @@ class WebsocketPacket:
             data = bytearray(char ^ masking_key[idx % 4] for idx, char in enumerate(data))
         content = data
         if (param := EXTENSIONS.get("permessage-deflate")) is not None:
-            if rsv & 0b100:
-                max_wbits = param.get("server_max_window_bits", param.get("client_max_window_bits", 15))
-                if fin:
-                    content += b"\0\0\xff\xff"
-                content = self.comp_sess.inflate(content)
+            max_wbits = param.get("server_max_window_bits", param.get("client_max_window_bits", 15))
+            if fin:
+                content += ZLIB_EMPTY_BLOCK
+            content = self.comp_sess.inflate(content)
         return {
             "is_final": fin,
             "reserved": rsv ^ 0b100,
             "opcode": opcode,
-            "data": content
+            "data": content,
+            "extra": extra
         }
