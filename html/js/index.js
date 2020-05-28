@@ -13,7 +13,7 @@ function reset_state() {
   if (window.in_chatbox !== undefined && window.in_chatbox) {
     $("#main_container").removeClass("d-none");
     if (is_mobile()) {
-      $("#chatbox").addClass("d-none");
+      $("#chatbox").removeClass("d-flex").addClass("d-none");
     } else {
       $("#chatbox").css({width: "27%"});
     }
@@ -43,12 +43,11 @@ function display_notif(message, type) {
 }
 
 function add_message(message_obj) {
-  $("#chatbox-messages").append(
+  $("#chatbox-messages").prepend(
     $("<div></div>").addClass("chatbox-message").append(
       $("<label></label").addClass("message-username").text(message_obj.username + ":"),
       $("<label></label>").addClass("message-content").text(message_obj.content)
-        .css(message_obj.properties === undefined? {}: message_obj.properties)
-    )
+    ).css(message_obj.properties === undefined? {}: message_obj.properties)
   );
 }
 
@@ -106,7 +105,7 @@ $(window).on("load", function() {
       name: "home"
     }));
     if (!is_mobile()) {
-      $("#chatbox").removeClass("d-none");
+      $("#chatbox").removeClass("d-none").addClass("d-flex");
       ws.send(JSON.stringify({
         action: "initialize_chat"
       }));

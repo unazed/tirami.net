@@ -8,6 +8,7 @@ import os
 import json
 import string
 import types
+import pprint
 import server_constants
 import server_utils
 import server_api.websocket_interface
@@ -16,14 +17,14 @@ from server_api.websocket_interface import WebsocketPacket, CompressorSession
 
 
 class WebsocketClient:
-    def __init__(self, extensions, server, trans, addr):
+    def __init__(self, headers, extensions, server, trans, addr):
         server_api.websocket_interface.EXTENSIONS = extensions
         self.trans = trans
         self.addr = addr
-
         self.server = server
-        comp = None
+        self.headers = headers
 
+        comp = None
         self.comp = None
         if (params := extensions.get("permessage-deflate")) is not None:
             if (wbits := params.get("server_max_window_bits")) is None:
@@ -222,7 +223,10 @@ class WebsocketClient:
                 }))
                 self.broadcast_message({
                     "username": username,
-                    "content": escape(f"registered new account")
+                    "content": "registered new account",
+                    "properties": {
+                        "font-weight": "600"
+                    }
                 })
                 server_utils.commit_logins(self.server)
             elif action == "login":
@@ -267,7 +271,10 @@ class WebsocketClient:
                     print(f"{user!r} logged in via token")
                     self.broadcast_message({
                         "username": user,
-                        "content": escape(f"logged in with token")
+                        "content": "logged in with token",
+                        "properties": {
+                            "font-weight": "600"
+                        }
                     })
                     return
                 if not (res := server_utils.ensure_contains(
@@ -330,7 +337,10 @@ class WebsocketClient:
                 })
                 self.broadcast_message({
                     "username": username,
-                    "content": escape(f"logged in")
+                    "content": "logged in",
+                    "properties": {
+                        "font-weight": "600"
+                    }
                 })
                 server_utils.commit_logins(self.server)
             elif action == "logout":
@@ -359,7 +369,10 @@ class WebsocketClient:
                 }))
                 self.broadcast_message({
                     "username": self.authentication['username'],
-                    "content": "logged out"
+                    "content": "logged out",
+                    "properties": {
+                        "font-weight": "600"
+                    }
                 })
                 self.authentication = {}
             elif action == "initialize_chat":
@@ -370,9 +383,17 @@ class WebsocketClient:
                 self.broadcast_message({
                     "username": "SYSTEM",
                     "content": escape(
-                        f"{username} joined"
-                        )
+                        f"{username} joined the chat"
+                        ),
+                    "properties": {
+                        "font-weight": "600"
+                    }
                 })
+                for message in self.server.message_cache:
+                    self.trans.write(self.packet_ctor.construct_response({
+                        "action": "on_message",
+                        "message": message
+                    }))
             elif action == "send_message":
                 if not (message := server_utils.ensure_contains(
                         self, content, ("message",)
@@ -384,7 +405,10 @@ class WebsocketClient:
                         "action": "on_message",
                         "message": {
                             "username": "SYSTEM",
-                            "content": "register or login to post a message"
+                            "content": "register or login to post a message",
+                            "properties": {
+                                "font-weight": "600"
+                            }
                         }
                     }))
                     return
@@ -393,15 +417,19 @@ class WebsocketClient:
                         "action": "on_message",
                         "message": {
                             "username": "SYSTEM",
-                            "content": "message must be less than 256 characters"
+                            "content": "message must be less than 256 characters",
+                            "properties": {
+                                "font-weight": "600"
+                            }
                         }
                     }))
                     return
                 print(f"{self.authentication['username']}: {message!r}")
-                self.broadcast_message({
+                self.broadcast_message(obj := {
                     "username": self.authentication['username'],
-                    "content": escape(message)
+                    "content": message
                 })
+                self.server.message_cache.append(obj)
         else:
             print("received weird opcode, closing for inspection",
                     hex(data['opcode']))
@@ -461,10 +489,12 @@ def unsupported_handler(metadata, code=None):
 
 
 @server.route("websocket", "/ws-tirami")
-def websocket_handler(idx, extensions, prot, addr, data):
+def websocket_handler(headers, idx, extensions, prot, addr, data):
     print("registering new websocket transport")
     if idx not in server.clients:
-        server.clients[idx] = WebsocketClient(extensions, server, prot.trans, addr)
+        server.clients[idx] = WebsocketClient(
+            headers, extensions, server, prot.trans, addr
+        )
     prot.on_data_received = server.clients[idx]
     prot.on_connection_lost = server.clients[idx].on_close
     prot.on_data_received(prot.trans, addr, data)
@@ -518,4 +548,5 @@ with open("logins.db") as logins:
         server.logins = {}
 
 server.clients = {}
+server.message_cache = []
 server.loop.run_until_complete(main_loop(server))

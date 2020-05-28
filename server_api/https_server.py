@@ -313,7 +313,8 @@ class HttpsServer(SocketServer):
         prot.on_data_received = lambda *args:\
             self.routes[metadata['method']['path']]\
                 ['options']['protocol_handler'](
-                    len(self.websocket_clients)-1, parse_websocket_extensions(agreed_exts), *args
+                    headers, len(self.websocket_clients)-1,
+                    parse_websocket_extensions(agreed_exts), *args
                 )
         return False
 # </editor-fold>

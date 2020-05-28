@@ -52,6 +52,11 @@ div#chatbox {
 #chatbox-messages {
   margin-top: 0.5em;
   padding: .375rem .75rem;
+  overflow: auto;
+}
+
+.chatbox-message {
+  white-space: nowrap;
 }
 
 .chatbox-message label {
