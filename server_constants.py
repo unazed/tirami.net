@@ -26,18 +26,20 @@ SUPPORTED_WS_ACTIONS = [
     "register",
     "login", "logout",
     "navigation",
-    "initialize_chat"
+    "initialize_chat",
+    "send_message"
 ]
 
 SUPPORTED_WS_EVENTS = {
-    "home": when_authenticated("on_load.js"),
+    "home": when_authenticated("home.js"),
     "navigation": "events/navigation.js",
     "login": "events/login.js",
     "login_fail": "events/input_fail.js",
     "register": "events/register.js",
     "register_fail": "events/input_fail.js",
     "logout": "events/logout.js",
-    "forbidden": "events/forbidden.js"
+    "forbidden": "events/forbidden.js",
+    "chatbox": "events/chatbox.js"
 }
 
 MIMETYPES = {
@@ -62,7 +64,8 @@ WHITELISTED_RANGES = [*map(ip_network, [
     "162.158.0.0/15",
     "104.16.0.0/12",
     "172.64.0.0/13",
-    "131.0.72.0/22"
+    "131.0.72.0/22",
+    "::1", "192.168.0.0/24"
     ])]
 
 ALLOWED_FOLDERS = {

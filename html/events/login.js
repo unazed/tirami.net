@@ -1,3 +1,4 @@
+reset_state();
 $("#main_container").empty().append(
 `<div class="input-group mb-3">
   <div class="input-group-prepend">

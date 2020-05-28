@@ -49,6 +49,20 @@ div#chatbox {
   flex: initial;
 }
 
-.chatbox-username {
+#chatbox-messages {
+  margin-top: 0.5em;
+  padding: .375rem .75rem;
+}
+
+.chatbox-message label {
+  color: rgba(73, 80, 87, .7);
+  transition: color 0.3s ease-in-out;
+}
+
+.chatbox-message:hover  label {
+  color: rgba(73, 80, 87, 1);
+}
+
+.message-username {
   margin-right: 5px;
 }

@@ -127,6 +127,8 @@ class WebsocketClient:
                     "action": "do_load",
                     "data": data
                 }))
+                if "navigation" not in event:  #smh
+                    print(f"retrieving event {event!r}")
             elif action == "register":
                 if self.authentication:
                     self.trans.write(self.packet_ctor.construct_response({
@@ -362,9 +364,6 @@ class WebsocketClient:
                 self.authentication = {}
             elif action == "initialize_chat":
                 if self.chat_initialized:
-                    self.trans.write(self.packet_ctor.construct_response({
-                        "error": "attempted to reinitialize chat, refresh"
-                    }))
                     return
                 self.chat_initialized = True
                 username = self.authentication.get("username", "Guest")
@@ -373,6 +372,35 @@ class WebsocketClient:
                     "content": escape(
                         f"{username} joined"
                         )
+                })
+            elif action == "send_message":
+                if not (message := server_utils.ensure_contains(
+                        self, content, ("message",)
+                        )):
+                    return
+                message = message[0]
+                if not self.authentication:
+                    self.trans.write(self.packet_ctor.construct_response({
+                        "action": "on_message",
+                        "message": {
+                            "username": "SYSTEM",
+                            "content": "register or login to post a message"
+                        }
+                    }))
+                    return
+                elif len(message) > 255:
+                    self.trans.write(self.packet_ctor.construct_response({
+                        "action": "on_message",
+                        "message": {
+                            "username": "SYSTEM",
+                            "content": "message must be less than 256 characters"
+                        }
+                    }))
+                    return
+                print(f"{self.authentication['username']}: {message!r}")
+                self.broadcast_message({
+                    "username": self.authentication['username'],
+                    "content": escape(message)
                 })
         else:
             print("received weird opcode, closing for inspection",

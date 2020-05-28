@@ -5,6 +5,21 @@ var TYPES = {
   warning: "rgba(253, 126, 20, 0.5)"
 }
 
+function is_mobile() {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
+
+function reset_state() {
+  if (window.in_chatbox !== undefined && window.in_chatbox) {
+    $("#main_container").removeClass("d-none");
+    if (is_mobile()) {
+      $("#chatbox").addClass("d-none");
+    } else {
+      $("#chatbox").css({width: "27%"});
+    }
+  }
+}
+
 function display_notif(message, type) {
   $("#error_div").append(
     $("<p></p>").text(message).prepend(
@@ -28,11 +43,10 @@ function display_notif(message, type) {
 }
 
 function add_message(message_obj) {
-  console.log("got message", message_obj);
-  $("#chatbox").append(
+  $("#chatbox-messages").append(
     $("<div></div>").addClass("chatbox-message").append(
-      $("<label></label").addClass("chatbox-username").text(message_obj.username + ":"),
-      $("<label></label>").addClass("chatbox-message").text(message_obj.content)
+      $("<label></label").addClass("message-username").text(message_obj.username + ":"),
+      $("<label></label>").addClass("message-content").text(message_obj.content)
         .css(message_obj.properties === undefined? {}: message_obj.properties)
     )
   );
@@ -52,7 +66,6 @@ function handle_ws_message(event) {
       name: "home"
     }));
   } else if (content.action === "login") {
-    console.log(content);
     if (content.data.token === undefined && content.data.username) {
       window.sessionStorage.setItem("username", content.data.username);
     } else {
@@ -82,7 +95,6 @@ $(window).on("load", function() {
 
   window.ws.onopen = function() {
     token = window.sessionStorage['token'];
-    console.log(token);
     if (token) {
       ws.send(JSON.stringify({
         action: "login",
@@ -93,9 +105,12 @@ $(window).on("load", function() {
       action: "event_handler",
       name: "home"
     }));
-    ws.send(JSON.stringify({
-      action: "initialize_chat"
-    }));
+    if (!is_mobile()) {
+      $("#chatbox").removeClass("d-none");
+      ws.send(JSON.stringify({
+        action: "initialize_chat"
+      }));
+    }
     window.nav_update = setInterval(function() {
       ws.send(JSON.stringify({
         action: "event_handler",
@@ -128,4 +143,25 @@ $(".nav-link").each(function(idx, elem) {
     $(".nav-link.active").toggleClass("active");
     $(this).toggleClass("active");
   });
+});
+
+$("#chatbox_input").on("keypress", function(e) {
+  if (e.which == 13) {
+    $(this).attr("disabled", "disabled");
+    if (!(msg = $(this).val())) {
+      display_notif("message cannot be empty", "warning");
+      setTimeout(function(obj) {
+        obj.removeAttr("disabled");
+      }, 500, $(this));
+      return;
+    }
+    window.ws.send(JSON.stringify({
+      action: "send_message",
+      message: msg
+    }));
+    $(this).val("");
+    setTimeout(function(obj) {
+      obj.removeAttr("disabled");
+    }, 500, $(this));
+  }
 });
