@@ -23,7 +23,7 @@ class CompressorSession:
         self.compressor = zlib.compressobj(
             wbits=-wbits,
         )
-        self.decompressor = decompress = zlib.decompressobj(
+        self.decompressor = zlib.decompressobj(
             wbits=-wbits
         )
 
@@ -68,6 +68,7 @@ class WebsocketPacket:
             data = json.dumps(data)
         if isinstance(data, str):
             data = data.encode()
+        
         fin_rsv_opcode = (final << 7) | opcode
         if (param := EXTENSIONS.get("permessage-deflate")) is not None:
             fin_rsv_opcode |= 0b0100_0000
@@ -75,6 +76,7 @@ class WebsocketPacket:
             if final and data.endswith(ZLIB_EMPTY_BLOCK):
                 data = data[:-len(ZLIB_EMPTY_BLOCK)]
         fin_rsv_opcode = bytes([fin_rsv_opcode])
+
         if len(data) <= 125:
             payload = bytes([len(data)])
             length = b""
@@ -122,7 +124,7 @@ class WebsocketPacket:
         content = data
         if (param := EXTENSIONS.get("permessage-deflate")) is not None:
             if rsv & 0b100:
-                max_wbits = int(param[0].split("=")[1])
+                max_wbits = param.get("server_max_window_bits", param.get("client_max_window_bits", 15))
                 if fin:
                     content += b"\0\0\xff\xff"
                 content = self.comp_sess.inflate(content)

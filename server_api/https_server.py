@@ -38,25 +38,22 @@ def global_exception_handler(exctype, value, traceback):
 sys.excepthook = global_exception_handler
 
 
-def fulfill_websocket_extensions(extension, params):
-    print(params)
-    if extension == "permessage-deflate":
-        for idx, param in enumerate(params):
-            if "client_max_window_bits" in param:
-                del params[idx]
-        params.append(f"server_max_window_bits={zlib.MAX_WBITS}")
-        params.append(f"client_max_window_bits={zlib.MAX_WBITS}")
+def permessage_deflate(params):
+    resp = ["permessage-deflate"]
+    if (client_wbits := params.get("client_max_window_bits")) is None:
+        resp.append(f"server_max_window_bits={zlib.MAX_WBITS}")
+        resp.append(f"client_max_window_bits={zlib.MAX_WBITS}")
+    else:
+        resp.append(f"server_max_window_bits={client_wbits}")
+    return "; ".join(resp)
 
 
 def parse_websocket_parameters(params):
     if not params:
-        return []
-    result = []
+        return {}
+    result = {}
     for param in params:
-        if '=' in param:
-            result.append(param.split("=", 1).strip())
-        else:
-            result.append(param.strip())
+        result[param.split("=")[0].strip()] = param.split("=")[1].strip() if "=" in param else None
     return result
 
 
@@ -101,7 +98,9 @@ class HttpsServer(SocketServer):
 
     WEBSOCKET_VERSION = "13"
     WEBSOCKET_MAGIC = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
-    WEBSOCKET_SUPPORTED_EXTS = ("permessage-deflate",)
+    WEBSOCKET_SUPPORTED_EXTS = {
+        "permessage-deflate": permessage_deflate
+        }
 # </editor-fold>
 # <editor-fold __init__
     def __init__(self, *args, root_directory="./", minify_data=True,
@@ -274,7 +273,6 @@ class HttpsServer(SocketServer):
         trans = metadata['transport']
         headers = metadata['headers']
         method = metadata['method']
-        agreed_extensions = {}
         if (websocket_key := headers.get("sec-websocket-key")) is None:
             print("'sec-websocket-key' wasn't passed")
             trans.close()
@@ -291,13 +289,14 @@ class HttpsServer(SocketServer):
             trans.close()
             return False
         elif (extensions := headers.get("sec-websocket-extensions")) is not None:
+            agreed_exts = []
             for ext, params in parse_websocket_extensions(extensions).items():
-                if ext not in HttpsServer.WEBSOCKET_SUPPORTED_EXTS:
+                if (ext_fn := HttpsServer.WEBSOCKET_SUPPORTED_EXTS.get(ext)) is None:
                     print(f"unsupported websocket extension {ext!r} skipped")
                     continue
                 print(f"agreed WS extension {ext!r} with params: {params!r}")
-                fulfill_websocket_extensions(ext, params)
-                agreed_extensions[ext] = params
+                agreed_exts.append(ext_fn(params))
+            agreed_exts = ', '.join(agreed_exts)
         print("successfully upgraded connection")
         accept_hash = base64.b64encode(hashlib.sha1(
             (websocket_key + HttpsServer.WEBSOCKET_MAGIC).encode()
@@ -305,22 +304,16 @@ class HttpsServer(SocketServer):
         data = {
             "connection": "Upgrade",
             "upgrade": "websocket",
-            "sec-websocket-accept": accept_hash
+            "sec-websocket-accept": accept_hash,
+            **({"sec-websocket-extensions": agreed_exts} if extensions is not None else {})
         }
-        if agreed_extensions:
-            data.update({
-                "sec-websocket-extensions": ', '.join(
-                    f"{ext}" + ("; " + '; '.join(params) if params else "") for ext, params in agreed_extensions.items()
-                )
-            })
-            print("LOOL", data)
         trans.write(self.construct_response("Switching Protocols", data))
         self.websocket_clients.append(trans)
         prot = trans.get_protocol()
         prot.on_data_received = lambda *args:\
             self.routes[metadata['method']['path']]\
                 ['options']['protocol_handler'](
-                    len(self.websocket_clients)-1, agreed_extensions, *args
+                    len(self.websocket_clients)-1, parse_websocket_extensions(agreed_exts), *args
                 )
         return False
 # </editor-fold>
