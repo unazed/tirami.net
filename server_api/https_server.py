@@ -190,7 +190,7 @@ class HttpsServer(SocketServer):
                 print(f"invalid method {method['method']}")
                 server.trans.write(self.construct_response("Method Not Allowed",
                     error_body="<p>Unsupported method, this page only allows "
-                               f"({', '.join(method['method'])})-requests</p>"
+                               f"({', '.join(route['methods'])})-requests</p>"
                     ))
                 server.trans.close()
                 return
