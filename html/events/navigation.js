@@ -3,20 +3,16 @@ if ($$username && !$("a#nav-username").get().length) {
     $("<li></li>").addClass("nav-item").append(
       $("<a></a>").addClass("nav-link").text($$username).attr({
         id: "nav-username",
-        href: "#"
-      }).click(function() {
-        // on-click username
+        href: "#",
+        name: "profile/" + $$username
       })
     )
   ).append(
     $("<li></li>").addClass("nav-item").append(
-      $("<a></a>").addClass("nav-link").text("logout").click(function() {
-        window.ws.send(JSON.stringify({
-          action: "logout"
-        }))
-      }).attr({
+      $("<a></a>").addClass("nav-link").text("logout").attr({
         id: "nav-logout",
-        href: "#"
+        href: "#",
+        name: "logout"
       })
     )
   );
@@ -27,5 +23,5 @@ if ($$username && !$("a#nav-username").get().length) {
   $("a#nav-logout").parent().remove();
   $("#nav-login").parent().show();
   $("#nav-register").parent().show();
-  display_notif("logged out", "warning");
+  display_notif("logged out", "info");
 }

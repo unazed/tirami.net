@@ -9,6 +9,10 @@ function is_mobile() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
 
+String.prototype.toProperCase = function () {
+    return this.replace(/\w\S*/g, function(txt){return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();});
+};
+
 function reset_state() {
   if (window.in_chatbox !== undefined && window.in_chatbox) {
     $("#main_container").removeClass("d-none");
@@ -43,12 +47,19 @@ function display_notif(message, type) {
 }
 
 function add_message(message_obj) {
+  var prev_msg = $(".message-content")[0];
   $("#chatbox-messages").prepend(
     $("<div></div>").addClass("chatbox-message").append(
-      $("<label></label").addClass("message-username").text(message_obj.username + ":"),
-      $("<label></label>").addClass("message-content").text(message_obj.content)
+      label_obj = $("<label></label>").addClass("message-content").text(
+        message_obj.username?
+          (message_obj.username + ": " + message_obj.content):
+          (message_obj.content)
+      )
     ).css(message_obj.properties === undefined? {}: message_obj.properties)
   );
+  if (prev_msg !== undefined && prev_msg.textContent.startsWith(message_obj.username + ":")) {
+    label_obj.parent().addClass("border-0");
+  }
 }
 
 function handle_ws_message(event) {
@@ -80,6 +91,27 @@ function handle_ws_message(event) {
   } else if (content.warning) {
     display_notif(content.warning, "warning");
   }
+  $(".nav-link").each(function(idx, elem) {
+    $(elem).off("click");
+    $(elem).click(function() {
+      if (window.ws === undefined) {
+        display_notif("wait a moment for the websockets to initialize", "error");
+        return;
+      }
+      if (this.name === "logout") {
+        window.ws.send(JSON.stringify({
+          action: "logout"
+        }))
+      } else {
+        window.ws.send(JSON.stringify({
+          action: "event_handler",
+          name: $(this).attr('name'),
+        }));
+      }
+      $(".nav-link.active").toggleClass("active");
+      $(this).toggleClass("active");
+    });
+  });
 }
 
 $(window).on("load", function() {
@@ -129,21 +161,6 @@ $(window).on("load", function() {
   }
 });
 
-$(".nav-link").each(function(idx, elem) {
-  $(elem).click(function() {
-    if (window.ws === undefined) {
-      display_notif("wait a moment for the websockets to initialize", "error");
-      return;
-    }
-    window.ws.send(JSON.stringify({
-      action: "event_handler",
-      name: $(this).attr('name'),
-    }));
-    $(".nav-link.active").toggleClass("active");
-    $(this).toggleClass("active");
-  });
-});
-
 $("#chatbox_input").on("keypress", function(e) {
   if (e.which == 13) {
     $(this).attr("disabled", "disabled");
@@ -161,6 +178,7 @@ $("#chatbox_input").on("keypress", function(e) {
     $(this).val("");
     setTimeout(function(obj) {
       obj.removeAttr("disabled");
-    }, 500, $(this));
+      $("#chatbox_input:text:visible:first").focus()
+    }, 250, $(this));
   }
 });

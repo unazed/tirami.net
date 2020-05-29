@@ -1,4 +1,5 @@
 from ipaddress import ip_network
+from functools import partial
 
 
 def get_mimetype(name):
@@ -7,13 +8,33 @@ def get_mimetype(name):
 
 def when_authenticated(name, must_have_auth=False):
     def inner(client):
-        if not client.authentication:
+        if not client.authentication and not must_have_auth:
             return f"events/{name}"
-        elif must_have_auth:
+        elif not client.authentication:
             return SUPPORTED_WS_EVENTS['forbidden']
         return f"events/auth/{name}"
     return inner
 
+
+def service_item(client, name):
+    if not client.authentication:
+        return SUPPORTED_WS_EVENTS['forbidden']
+    elif name not in SUPPORTED_SERVICES:
+        return SUPPORTED_WS_EVENTS['home']
+    return "events/auth/service.js", {
+        "$$service": f'"{name}"'
+        }
+
+
+def retrieve_profile(client, username):
+    if username not in client.server.logins:
+        return SUPPORTED_WS_EVENTS['notify'], {
+            "$$reason": "profile doesn't exist",
+            "$$type": "error"
+            }
+    return SUPPORTED_WS_EVENTS['show_profile'], {
+        "$$username": f'"{username}"'
+        }
 
 ERROR_CODES = {
     "400": "Websockets are unsupported on your platform "
@@ -27,11 +48,15 @@ SUPPORTED_WS_ACTIONS = [
     "login", "logout",
     "navigation",
     "initialize_chat",
-    "send_message"
+    "send_message",
 ]
 
+SUPPORTED_SERVICES = ("tiktok", "twitch.tv", "snapchat")
+
 SUPPORTED_WS_EVENTS = {
-    "home": when_authenticated("home.js"),
+    "home": "events/home.js",
+    "service/*": service_item,
+    "profile/*": retrieve_profile,
     "navigation": "events/navigation.js",
     "login": "events/login.js",
     "login_fail": "events/input_fail.js",
@@ -39,7 +64,9 @@ SUPPORTED_WS_EVENTS = {
     "register_fail": "events/input_fail.js",
     "logout": "events/logout.js",
     "forbidden": "events/forbidden.js",
-    "chatbox": "events/chatbox.js"
+    "chatbox": "events/chatbox.js",
+    "notify": "events/notify.js",
+    "show_profile": "events/show_profile.js"
 }
 
 MIMETYPES = {

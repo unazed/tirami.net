@@ -89,6 +89,7 @@ class WebsocketClient:
                 self.trans.write(self.packet_ctor.construct_response({
                     "error": "client sent invalid JSON"
                 }))
+                print("received invalid JSON:", data['data'])
                 return
 
             if (action := content.get("action")) is None:
@@ -101,23 +102,39 @@ class WebsocketClient:
                     "error": f"action {escape(action)!r} doesn't exist"
                 }))
                 return
-
             if action == "event_handler":
                 if not (event_name := server_utils.ensure_contains(
                         self, content, ("name",)
                         )):
                     return
                 event_name = event_name[0]
-                if (event := server_constants.SUPPORTED_WS_EVENTS.get(event_name)) is None:
+                if len(subpath := event_name.split("/", 2)) == 2:
+                    subpath, event_name = subpath
+                    if (event := server_constants.SUPPORTED_WS_EVENTS.get(
+                                f"{subpath}/*"
+                            )) is None and\
+                            (event := server_constants.SUPPORTED_WS_EVENTS.get(
+                                f"{subpath}/{event_name}"
+                            )) is None:
+                        self.trans.write(self.packet_ctor.construct_response({
+                            "error": f"event {escape(event_name)!r} not registered"
+                        }))
+                        return
+                    event = event(self, event_name)
+                elif (event := server_constants.SUPPORTED_WS_EVENTS.get(event_name)) is None:
                     self.trans.write(self.packet_ctor.construct_response({
                         "error": f"event {escape(event_name)!r} not registered"
                     }))
                     return
                 elif isinstance(event, types.FunctionType):
                     event = event(self)
+                format = {}
+                if isinstance(event, (tuple, list)):
+                    event, format = event
                 data = self.server.read_file(event, format={
                     "$$username": '"' + self.authentication.get("username", "") + '"',
-                    "$$auth_token": '"' + self.authentication.get("token", "") + '"'
+                    "$$auth_token": '"' + self.authentication.get("token", "") + '"',
+                    **format
                 })
                 if not data:
                     self.trans.write(self.packet_ctor.construct_response({
@@ -222,8 +239,7 @@ class WebsocketClient:
                         )
                 }))
                 self.broadcast_message({
-                    "username": username,
-                    "content": "registered new account",
+                    "content": f"{username} registered a new account",
                     "properties": {
                         "font-weight": "600"
                     }
@@ -270,8 +286,7 @@ class WebsocketClient:
                     }
                     print(f"{user!r} logged in via token")
                     self.broadcast_message({
-                        "username": user,
-                        "content": "logged in with token",
+                        "content": f"{user} has signed in (token)",
                         "properties": {
                             "font-weight": "600"
                         }
@@ -336,8 +351,7 @@ class WebsocketClient:
                     "active_token": tok
                 })
                 self.broadcast_message({
-                    "username": username,
-                    "content": "logged in",
+                    "content": f"{username} has signed in",
                     "properties": {
                         "font-weight": "600"
                     }
@@ -349,7 +363,6 @@ class WebsocketClient:
                         "error": "tried to logout when not logged in"
                     }))
                     return
-
                 self.server.logins[self.authentication['username']]['active_token'] = ""
                 print(f"{self.authentication['username']!r} logged out")
                 self.trans.write(self.packet_ctor.construct_response({
@@ -368,8 +381,7 @@ class WebsocketClient:
                     )
                 }))
                 self.broadcast_message({
-                    "username": self.authentication['username'],
-                    "content": "logged out",
+                    "content": f"{self.authentication['username']} is away",
                     "properties": {
                         "font-weight": "600"
                     }
@@ -379,16 +391,6 @@ class WebsocketClient:
                 if self.chat_initialized:
                     return
                 self.chat_initialized = True
-                username = self.authentication.get("username", "Guest")
-                self.broadcast_message({
-                    "username": "SYSTEM",
-                    "content": escape(
-                        f"{username} joined the chat"
-                        ),
-                    "properties": {
-                        "font-weight": "600"
-                    }
-                })
                 for message in self.server.message_cache:
                     self.trans.write(self.packet_ctor.construct_response({
                         "action": "on_message",
