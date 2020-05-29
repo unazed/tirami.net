@@ -70,13 +70,16 @@ WHITELISTED_RANGES = [*map(ip_network, [
 
 ALLOWED_FOLDERS = {
     "html/css": {
-        "Cache-Control": "max-age=3600"
+#        "Cache-Control": "max-age=3600"
+        "Cache-Control": "nostore"
         },
     "html/js": {
-        "Cache-Control": "max-age=3600"
+#        "Cache-Control": "max-age=3600"
+        "Cache-Control": "nostore"
         },
     "html/img": {
-        "Cache-Control": "max-age=3600",
+#        "Cache-Control": "max-age=3600",
+        "Cache-Control": "nostore",
         "__read_params": {
             "mode": "rb"
             }
