@@ -69,10 +69,23 @@ WHITELISTED_RANGES = [*map(ip_network, [
     ])]
 
 ALLOWED_FOLDERS = {
-    "html/css": None,
-    "html/js": None,
+    "html/css": {
+        "Cache-Control": "max-age=3600"
+        },
+    "html/js": {
+        "Cache-Control": "max-age=3600"
+        },
     "html/img": {
-        "Cache-Control": "nostore",
+        "Cache-Control": "max-age=3600",
+        "__read_params": {
+            "mode": "rb"
+            }
+        }
+    }
+
+ALLOWED_FILES = {
+    "favicon.ico": {
+        "__redirect": "html/img/favicon.ico",
         "__read_params": {
             "mode": "rb"
             }

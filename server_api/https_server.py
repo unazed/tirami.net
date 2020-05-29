@@ -294,7 +294,7 @@ class HttpsServer(SocketServer):
                 if (ext_fn := HttpsServer.WEBSOCKET_SUPPORTED_EXTS.get(ext)) is None:
                     print(f"unsupported websocket extension {ext!r} skipped")
                     continue
-                print(f"agreed WS extension {ext!r} with params: {params!r}")
+                print(f"agreed WS extension {ext!r}")
                 agreed_exts.append(ext_fn(params))
             agreed_exts = ', '.join(agreed_exts)
         print("successfully upgraded connection")

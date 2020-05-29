@@ -71,3 +71,7 @@ div#chatbox {
 .message-username {
   margin-right: 5px;
 }
+
+.service-ico {
+  float: right;
+}

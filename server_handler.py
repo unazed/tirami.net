@@ -531,6 +531,27 @@ def wildcard_handler(metadata):
             "mode": "r"
         })
         return
+    elif len(path) == 1:
+        file = path[0]
+        if (path := server_constants.ALLOWED_FILES.get(file)) is None:
+            trans.write(server.construct_response("Forbidden",
+                error_body=f"<p>File {escape(file)!r} isn't whitelisted</p>"
+                ))
+            return
+        elif (redir := server_constants.ALLOWED_FILES[file].get("__redirect")) is not None:
+            path = redir
+        headers = {}
+        if isinstance((hdrs := server_constants.ALLOWED_FILES[file]), dict):
+            headers = dict(filter(lambda i: not i[0].startswith("__"), hdrs.items()))
+        server.send_file(metadata, f"../{path}", headers={
+            "content-type": server_constants.get_mimetype(file),
+            **headers
+        }, do_minify=False,
+        read_kwargs=server_constants.ALLOWED_FILES[file].get(
+            "__read_params", {}
+        ) if server_constants.ALLOWED_FILES[file] is not None else {
+            "mode": "r"
+        })
     trans.write(server.construct_response("Not Found",
         error_body=f"<p>File {escape(metadata['method']['path'])!r} "
                     "doesn't exist</p>"
