@@ -49,6 +49,7 @@ SUPPORTED_WS_ACTIONS = [
     "navigation",
     "initialize_chat",
     "send_message",
+    "service"
 ]
 
 SUPPORTED_SERVICES = ("tiktok", "twitch.tv", "snapchat")

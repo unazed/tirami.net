@@ -1,4 +1,5 @@
 from html import escape
+import asyncio
 import base64
 import hashlib
 import time
@@ -12,9 +13,9 @@ import pprint
 import server_constants
 import server_utils
 import server_api.websocket_interface
+from server_api.services import schedule_service
 from server_api.https_server import HttpsServer
 from server_api.websocket_interface import WebsocketPacket, CompressorSession
-
 
 class WebsocketClient:
     def __init__(self, headers, extensions, server, trans, addr):
@@ -432,6 +433,21 @@ class WebsocketClient:
                     "content": message
                 })
                 self.server.message_cache.append(obj)
+            elif action == "service":
+                if not (res := server_utils.ensure_contains(
+                        self.trans, content, ("name", "usernames")
+                        )):
+                    return
+                name, usernames = res
+                if name not in server_constants.SUPPORTED_SERVICES:
+                    self.trans.write(self.packet_ctor.construct_response({
+                        "error": f"{escape(name)} isn't a registered service"
+                    }))
+                    return
+                self.server.service_tasks.append(schedule_service(
+                    self.server.loop, name, usernames
+                    ))
+
         else:
             print("received weird opcode, closing for inspection",
                     hex(data['opcode']))
@@ -572,4 +588,5 @@ with open("logins.db") as logins:
 
 server.clients = {}
 server.message_cache = []
+server.service_tasks = []
 server.loop.run_until_complete(main_loop(server))
