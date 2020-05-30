@@ -38,12 +38,14 @@ async def twitchtv(client, usernames, callback):
 
 async def snapchat(client, usernames, callback, id):
     results = {}
-    retry = 0
+    retry = current = 0
+    total = len(usernames)
     async with aiohttp.ClientSession() as session:
         while usernames:
             if not retry:
                 username = usernames.pop(0)
-                service_notify(client, f"[snapchat#{id}] checking {username}")
+                current += 1
+                service_notify(client, f"[snapchat#{id}] [{current}/{total}] checking {username}")
             if username in results:
                 continue
             elif username in GLOBAL_CACHE:
@@ -75,7 +77,7 @@ async def snapchat(client, usernames, callback, id):
                 except Exception as exc:
                     service_notify(client, f"[snapchat#{id}] retrying {username}")
                     if not retry:
-                        retry = 3
+                        retry = server_constants.RETRY_ATTEMPTS
                     else:
                         retry -= 1
                     await asyncio.sleep(5)

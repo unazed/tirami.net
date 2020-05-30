@@ -39,6 +39,7 @@ class WebsocketClient:
         self.authentication = server.authentication = {}
         self.chat_initialized = False
         self.tasks_scheduled = 0
+        self.tasks_overall = 0
 
         self.__is_final = True
         self.__data_buffer = ""
@@ -217,7 +218,8 @@ class WebsocketClient:
                 server.logins[username] = {
                     "registration_timestamp": time.strftime("%D %H:%M:%S"),
                     "active_token": (tok := base64.b64encode(os.urandom(32)).decode()),
-                    "password": base64.b64encode(password).decode()
+                    "password": base64.b64encode(password).decode(),
+                    "rank": server_constants.DEFAULT_RANK
                 }
                 self.authentication = {
                     "username": username,
@@ -285,7 +287,8 @@ class WebsocketClient:
                     }))
                     self.authentication = {
                         "username": user,
-                        "token": tok
+                        "token": tok,
+                        "rank": data['rank']
                     }
                     print(f"{user!r} logged in via token")
                     self.broadcast_message({
@@ -348,7 +351,8 @@ class WebsocketClient:
                 }))
                 self.authentication = {
                     "username": username,
-                    "token": tok
+                    "token": tok,
+                    "rank": data['rank']
                 }
                 self.server.logins[username].update({
                     "active_token": tok
@@ -446,6 +450,7 @@ class WebsocketClient:
                             server_constants.SUPPORTED_WS_EVENTS['forbidden']
                         )
                     }))
+                    return
                 name, usernames = res
                 usernames = usernames.splitlines()
                 if name not in server_constants.SUPPORTED_SERVICES:
@@ -453,10 +458,17 @@ class WebsocketClient:
                         "error": f"{escape(name)} isn't a registered service"
                     }))
                     return
-                elif self.tasks_scheduled >= server_constants.MAX_SERVICES:
+                rank = server_constants.RANK_PROPERTIES[self.authentication['rank']]
+                if self.tasks_scheduled > rank['max_tasks']:
                     self.trans.write(self.packet_ctor.construct_response({
                         "error": "you may only schedule at most "
-                                f"{server_constants.MAX_SERVICES} services",
+                                f"{rank['max_tasks']} services",
+                    }))
+                    return
+                elif len(usernames) > rank['max_usernames']:
+                    self.trans.write(self.packet_ctor.construct_response({
+                        "error": "you may only check at most "
+                                f"{rank['max_usernames']} usernames",
                     }))
                     return
                 id = max(self.server.service_tasks, default=-1) + 1
@@ -480,6 +492,7 @@ class WebsocketClient:
                     )
                 }))
                 self.tasks_scheduled += 1
+                self.tasks_overall += 1
             elif action == "service_results":
                 if not self.authentication:
                     self.trans.write(self.packet_ctor.construct_response({
@@ -500,6 +513,27 @@ class WebsocketClient:
                             } for id, res in self.server.service_tasks.items()\
                             if res['scheduled_by'] == self.authentication
                         }
+                }))
+            elif action == "profile_info":
+                if not self.authentication:
+                    self.trans.write(self.packet_ctor.construct_response({
+                        "action": "do_load",
+                        "data": self.server.send_file(
+                            server_constants.SUPPORTED_WS_EVENTS['forbidden']
+                        )
+                    }))
+                    return
+                self.trans.write(self.packet_ctor.construct_response({
+                    "action": "profile_info",
+                    "data": {
+                        "running_checks": self.tasks_scheduled,
+                        "completed_checks": self.tasks_overall,
+                        "rank_permissions":\
+                            server_constants.RANK_PROPERTIES[
+                                self.authentication['rank']
+                                ],
+                        **self.authentication
+                    }
                 }))
         else:
             print("received weird opcode, closing for inspection",

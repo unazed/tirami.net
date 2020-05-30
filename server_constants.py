@@ -49,7 +49,8 @@ SUPPORTED_WS_ACTIONS = [
     "navigation",
     "initialize_chat",
     "send_message",
-    "service", "service_results"
+    "service", "service_results",
+    "profile_info"
 ]
 
 SUPPORTED_SERVICES = ("tiktok", "twitch.tv", "snapchat")
@@ -79,8 +80,6 @@ MIMETYPES = {
     "svg": "image/svg+xml"
 }
 
-MAX_SERVICES = 2
-
 DEFAULT_RANK = "default"
 UPGRADED_RANK = "upgraded"
 
@@ -94,6 +93,8 @@ RANK_PROPERTIES = {
         "max_tasks": 2
         }
     }
+
+RETRY_ATTEMPTS = 1
 
 WHITELISTED_RANGES = [*map(ip_network, [
     "173.245.48.0/20",
