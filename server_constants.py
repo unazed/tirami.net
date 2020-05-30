@@ -7,10 +7,10 @@ def get_mimetype(name):
 
 
 def when_authenticated(name, must_have_auth=False):
-    def inner(client):
-        if not client.authentication and not must_have_auth:
+    def inner(auth):
+        if not auth and not must_have_auth:
             return f"events/{name}"
-        elif not client.authentication:
+        elif not auth:
             return SUPPORTED_WS_EVENTS['forbidden']
         return f"events/auth/{name}"
     return inner
@@ -49,7 +49,7 @@ SUPPORTED_WS_ACTIONS = [
     "navigation",
     "initialize_chat",
     "send_message",
-    "service"
+    "service", "service_results"
 ]
 
 SUPPORTED_SERVICES = ("tiktok", "twitch.tv", "snapchat")
@@ -67,7 +67,8 @@ SUPPORTED_WS_EVENTS = {
     "forbidden": "events/forbidden.js",
     "chatbox": "events/chatbox.js",
     "notify": "events/notify.js",
-    "show_profile": "events/show_profile.js"
+    "show_profile": when_authenticated("show_profile.js", True),
+    "service_notify": when_authenticated("service_notify.js", True)
 }
 
 MIMETYPES = {
@@ -77,6 +78,22 @@ MIMETYPES = {
     "ico": "image/x-icon",
     "svg": "image/svg+xml"
 }
+
+MAX_SERVICES = 2
+
+DEFAULT_RANK = "default"
+UPGRADED_RANK = "upgraded"
+
+RANK_PROPERTIES = {
+    DEFAULT_RANK: {
+        "max_usernames": 100,
+        "max_tasks": 2
+        },
+    UPGRADED_RANK: {
+        "max_usernames": 1000,
+        "max_tasks": 2
+        }
+    }
 
 WHITELISTED_RANGES = [*map(ip_network, [
     "173.245.48.0/20",

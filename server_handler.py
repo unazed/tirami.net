@@ -17,6 +17,7 @@ from server_api.services import schedule_service
 from server_api.https_server import HttpsServer
 from server_api.websocket_interface import WebsocketPacket, CompressorSession
 
+
 class WebsocketClient:
     def __init__(self, headers, extensions, server, trans, addr):
         server_api.websocket_interface.EXTENSIONS = extensions
@@ -37,6 +38,8 @@ class WebsocketClient:
 
         self.authentication = server.authentication = {}
         self.chat_initialized = False
+        self.tasks_scheduled = 0
+
         self.__is_final = True
         self.__data_buffer = ""
 
@@ -128,7 +131,7 @@ class WebsocketClient:
                     }))
                     return
                 elif isinstance(event, types.FunctionType):
-                    event = event(self)
+                    event = event(self.authentication)
                 format = {}
                 if isinstance(event, (tuple, list)):
                     event, format = event
@@ -146,8 +149,6 @@ class WebsocketClient:
                     "action": "do_load",
                     "data": data
                 }))
-                if "navigation" not in event:  #smh
-                    print(f"retrieving event {event!r}")
             elif action == "register":
                 if self.authentication:
                     self.trans.write(self.packet_ctor.construct_response({
@@ -220,7 +221,8 @@ class WebsocketClient:
                 }
                 self.authentication = {
                     "username": username,
-                    "token": tok
+                    "token": tok,
+                    "rank": server_constants.DEFAULT_RANK
                 }
                 self.trans.write(self.packet_ctor.construct_response({
                     "action": "registered",
@@ -407,7 +409,6 @@ class WebsocketClient:
                     self.trans.write(self.packet_ctor.construct_response({
                         "action": "on_message",
                         "message": {
-                            "username": "SYSTEM",
                             "content": "register or login to post a message",
                             "properties": {
                                 "font-weight": "600"
@@ -438,23 +439,93 @@ class WebsocketClient:
                         self.trans, content, ("name", "usernames")
                         )):
                     return
+                elif not self.authentication:
+                    self.trans.write(self.packet_ctor.construct_response({
+                        "action": "do_load",
+                        "data": self.server.send_file(
+                            server_constants.SUPPORTED_WS_EVENTS['forbidden']
+                        )
+                    }))
                 name, usernames = res
+                usernames = usernames.splitlines()
                 if name not in server_constants.SUPPORTED_SERVICES:
                     self.trans.write(self.packet_ctor.construct_response({
                         "error": f"{escape(name)} isn't a registered service"
                     }))
                     return
-                self.server.service_tasks.append(schedule_service(
-                    self.server.loop, name, usernames
-                    ))
-
+                elif self.tasks_scheduled >= server_constants.MAX_SERVICES:
+                    self.trans.write(self.packet_ctor.construct_response({
+                        "error": "you may only schedule at most "
+                                f"{server_constants.MAX_SERVICES} services",
+                    }))
+                    return
+                id = max(self.server.service_tasks, default=-1) + 1
+                self.server.service_tasks[id] = {
+                    "task": schedule_service(
+                        self, self.server.loop, name, usernames,
+                        self.service_callback, id
+                        ),
+                    "scheduled_by": self.authentication,
+                    "started": time.time(),
+                    "service": name
+                    }
+                self.trans.write(self.packet_ctor.construct_response({
+                    "action": "do_load",
+                    "data": self.server.read_file(
+                        server_constants.SUPPORTED_WS_EVENTS['service_notify'],
+                        format={
+                            "$$message": f"'task id: {id} scheduled, check your p"
+                                        "rofile to check its status'",
+                        }
+                    )
+                }))
+                self.tasks_scheduled += 1
+            elif action == "service_results":
+                if not self.authentication:
+                    self.trans.write(self.packet_ctor.construct_response({
+                        "action": "do_load",
+                        "data": self.server.read_file(
+                            server_constants.SUPPORTED_WS_EVENTS['forbidden']
+                        )
+                    }))
+                    return
+                self.trans.write(self.packet_ctor.construct_response({
+                    "action": "service_results",
+                    "data": {
+                        id: {
+                            "result": res['task'].result() if res['task'].done()
+                                      else "incomplete",
+                            "service": res['service'],
+                            "started": time.time() - res['started']
+                            } for id, res in self.server.service_tasks.items()\
+                            if res['scheduled_by'] == self.authentication
+                        }
+                }))
         else:
             print("received weird opcode, closing for inspection",
                     hex(data['opcode']))
             self.trans.close()
 
+    def service_callback(self, id):
+        service_name = inspect.currentframe().f_back.f_code.co_name  # Yuck !!!
+        self.trans.write(self.packet_ctor.construct_response({
+            "action": "do_load",
+            "data": self.server.read_file(
+                server_constants.SUPPORTED_WS_EVENTS['service_notify'],
+                format={
+                    "$$message": f'"task {service_name}#{id} finished '
+                                 f'{time.time() - self.server.service_tasks[id]["started"]:.2f}'
+                                 ' seconds ago"'
+                }
+            )
+        }))
+        print("took", time.time() - self.server.service_tasks[id]['started'],
+                "seconds")
+        self.tasks_scheduled -= 1
+
     def on_close(self, prot, addr, reason):
         print(f"closed websocket with {addr[0]!r}, reason={reason!r}")
+
 
 _print = print
 
@@ -588,5 +659,5 @@ with open("logins.db") as logins:
 
 server.clients = {}
 server.message_cache = []
-server.service_tasks = []
+server.service_tasks = {}
 server.loop.run_until_complete(main_loop(server))

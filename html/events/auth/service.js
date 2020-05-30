@@ -14,7 +14,6 @@ $("#main_container").empty().append(
             name: $$service,
             usernames: $("#service-username").val()
           }));
-          $(this).prop("disabled", "disabled");
         })
     ).addClass("d-flex flex-column"),
     $("<textarea>").prop({

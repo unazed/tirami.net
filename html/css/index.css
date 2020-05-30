@@ -41,6 +41,7 @@ div#main_container, div#chatbox {
   margin: 1em;
   padding: 5px;
   flex: 1;
+  overflow: auto;
 }
 
 div#chatbox {

@@ -88,6 +88,8 @@ function handle_ws_message(event) {
     }));
   } else if (content.action === "on_message") {
     add_message(content.message);
+  } else if (content.action === "service_results") {
+    on_results(content.data);
   } else if (content.warning) {
     display_notif(content.warning, "warning");
   }
