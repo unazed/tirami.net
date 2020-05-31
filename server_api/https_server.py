@@ -243,7 +243,6 @@ class HttpsServer(SocketServer):
                 server.trans.close()
                 return
             self.root_directory = dir
-            print(f"retrieve under subdomain {subdomain!r}")
         if subdomain != route['subdomain'] and route['subdomain'] != "*":
             server.trans.write(self.construct_response("Not Found",
                 error_body=f"<p>This subdomain route doesn't exist</p>"
@@ -284,7 +283,7 @@ class HttpsServer(SocketServer):
             upgrade_fn(metadata)
             return
             # this doesn't necessarily mean failure
-        print(f"{method['method']} {method['path']}")
+        print(f"{method['method']} {method['path']} under {subdomain}")
         resp = route['function'](
             metadata,
             **{k: v for k, v in query_string.items()
