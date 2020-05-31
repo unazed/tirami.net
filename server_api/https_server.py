@@ -243,6 +243,7 @@ class HttpsServer(SocketServer):
                 server.trans.close()
                 return
             self.root_directory = dir
+            print(f"retrieve under subdomain {subdomain!r}")
         if subdomain != route['subdomain'] and route['subdomain'] != "*":
             server.trans.write(self.construct_response("Not Found",
                 error_body=f"<p>This subdomain route doesn't exist</p>"
