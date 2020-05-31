@@ -611,7 +611,7 @@ def unsupported_handler(metadata, code=None):
         })
 
 
-@server.route("websocket", "/ws-tirami")
+@server.route("websocket", "/ws-tirami", subdomain="*")
 def websocket_handler(headers, idx, extensions, prot, addr, data):
     print("registering new websocket transport")
     if idx not in server.clients:
