@@ -114,6 +114,11 @@ WHITELISTED_RANGES = [*map(ip_network, [
     "::1", "192.168.0.0/24"
     ])]
 
+SUBDOMAIN_MAP = {
+    "www": "html/",
+    "registrar": "registrar/"
+    }
+
 ALLOWED_FOLDERS = {
     "html/css": {
 #        "Cache-Control": "max-age=3600"
@@ -125,6 +130,12 @@ ALLOWED_FOLDERS = {
         },
     "html/img": {
 #        "Cache-Control": "max-age=3600",
+        "Cache-Control": "nostore",
+        "__read_params": {
+            "mode": "rb"
+            }
+        },
+    "registrar/img": {
         "Cache-Control": "nostore",
         "__read_params": {
             "mode": "rb"

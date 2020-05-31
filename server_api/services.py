@@ -32,7 +32,7 @@ def service_notify(client, message):
     }))
 
 
-async def twitchtv(client, usernames, callback):
+async def twitchtv(client, usernames, callback, id):
     return callback("twitch!!!")
 
 
@@ -40,7 +40,9 @@ async def snapchat(client, usernames, callback, id):
     results = {}
     retry = current = 0
     total = len(usernames)
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
+                use_dns_cache=False, verify=False
+            )) as session:
         while usernames:
             if not retry:
                 username = usernames.pop(0)
@@ -88,7 +90,7 @@ async def snapchat(client, usernames, callback, id):
     return results
 
 
-async def tiktok(client, usernames, callback):
+async def tiktok(client, usernames, callback, id):
     return callback("tiktok")
 
 

@@ -104,13 +104,14 @@ class HttpsServer(SocketServer):
 # </editor-fold>
 # <editor-fold __init__
     def __init__(self, *args, root_directory="./", minify_data=True,
-                 callbacks=None, **kwargs):
+                 callbacks=None, subdomain_map=None, **kwargs):
         print("initializing HttpsServer instance, and subclasses")
         if not os.path.exists(root_directory):
             raise OSError(f"{root_directory!r} doesn't exist")
         self.root_directory = root_directory
         self.callbacks = callbacks or {}
         self.routes = {}
+        self.subdomain_map = subdomain_map
 
         self.websocket_clients = []
 
@@ -120,7 +121,7 @@ class HttpsServer(SocketServer):
         super().__init__(*args, **kwargs)
 # </editor-fold>
 # <editor-fold retrieve_route
-    def retrieve_route(self, path, *, try_wildcard=True):
+    def retrieve_route(self, path, *, subdomain=None, try_wildcard=True):
         uri = urlparse(path)
         if uri.path not in self.routes:
             if try_wildcard and (route := self.routes.get("/*")) is not None:
@@ -133,10 +134,10 @@ class HttpsServer(SocketServer):
 # <editor-fold route
     def route(self, methods, path, get_params=None, *,
               ignore_redundant_params=True, enforce_params=True,
-              protocol_handler=None):
+              protocol_handler=None, subdomain=None):
         def create_route(function):
             print(f"registered {path!r}")
-            self.routes[path] = {
+            self.routes[path] = {  # no same-name different-subdomains
                 "methods": methods if isinstance(methods, (list, tuple))
                                    else [methods],
                 "function": function,
@@ -147,7 +148,8 @@ class HttpsServer(SocketServer):
                     "protocol_handler": function if protocol_handler is None
                                                  else protocol_handler
                     },
-                "path": path
+                "path": path,
+                "subdomain": subdomain
                 }
         return create_route
 # </editor-fold>
@@ -223,6 +225,30 @@ class HttpsServer(SocketServer):
             "headers": headers,
             "body": content
             }
+
+        subdomain = None
+        if self.subdomain_map and (host := headers.get("host")) is None:
+            server.trans.write(self.construct_response("Bad Request",
+                error_body="<p>Your browser didn't pass a Host header</p>"
+                ))
+            server.trans.close()
+            return
+        elif self.subdomain_map:
+            *subdomains, _, _ = host.split(".")
+            subdomain = subdomains[-1]  # ignore **a.b.**c.google.com
+            if (dir := self.subdomain_map.get(subdomain)) is None:
+                server.trans.write(self.construct_response("Bad Request",
+                    error_body=f"<p>This subdomain ({escape(subdomain)}) doesn't exist</p>"
+                    ))
+                server.trans.close()
+                return
+            self.root_directory = dir
+        if subdomain != route['subdomain'] and route['subdomain'] != "*":
+            server.trans.write(self.construct_response("Not Found",
+                error_body=f"<p>This subdomain route doesn't exist</p>"
+                ))
+            server.trans.close()
+            return
 
         # upgrade connection, if necessary
         if "upgrade" in headers.get("connection").lower():

@@ -24,7 +24,6 @@ class WebsocketClient:
         self.trans = trans
         self.addr = addr
         self.server = server
-        self.headers = headers
 
         comp = None
         self.comp = None
@@ -593,11 +592,12 @@ server = HttpsServer(
     priv_key=".ssl/tirami.net.key",
     callbacks={
         "on_connection_made": preinit_whitelist
-        }
+        },
+    subdomain_map=server_constants.SUBDOMAIN_MAP
     )
 
 
-@server.route("GET", "/")
+@server.route("GET", "/", subdomain="*")
 def index_handler(metadata):
     server.send_file(metadata, "index.html")
 
@@ -623,7 +623,7 @@ def websocket_handler(headers, idx, extensions, prot, addr, data):
     prot.on_data_received(prot.trans, addr, data)
 
 
-@server.route("GET", "/*")
+@server.route("GET", "/*", subdomain="*")
 def wildcard_handler(metadata):
     trans = metadata['transport']
     path = metadata['method']['path'][1:].split("/")
