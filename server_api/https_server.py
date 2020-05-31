@@ -235,14 +235,15 @@ class HttpsServer(SocketServer):
             return
         elif self.subdomain_map:
             *subdomains, _, _ = host.split(".")
-            subdomain = subdomains[-1]  # ignore **a.b.**c.google.com
-            if (dir := self.subdomain_map.get(subdomain)) is None:
-                server.trans.write(self.construct_response("Bad Request",
-                    error_body=f"<p>This subdomain ({escape(subdomain)}) doesn't exist</p>"
-                    ))
-                server.trans.close()
-                return
-            self.root_directory = dir
+            if subdomains:
+                subdomain = subdomains[-1]  # ignore **a.b.**c.google.com
+                if (dir := self.subdomain_map.get(subdomain)) is None:
+                    server.trans.write(self.construct_response("Bad Request",
+                        error_body=f"<p>This subdomain ({escape(subdomain)}) doesn't exist</p>"
+                        ))
+                    server.trans.close()
+                    return
+                self.root_directory = dir
         if subdomain != route['subdomain'] and route['subdomain'] != "*":
             server.trans.write(self.construct_response("Not Found",
                 error_body=f"<p>This subdomain route doesn't exist</p>"
