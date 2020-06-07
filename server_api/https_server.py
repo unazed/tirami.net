@@ -149,7 +149,7 @@ class HttpsServer(SocketServer):
                                                  else protocol_handler
                     },
                 "path": path,
-                "subdomain": subdomain
+                "subdomain": [subdomain] if isinstance(subdomain, str) else subdomain
                 }
         return create_route
 # </editor-fold>
@@ -244,7 +244,7 @@ class HttpsServer(SocketServer):
                     server.trans.close()
                     return
                 self.root_directory = dir
-        if subdomain != route['subdomain'] and route['subdomain'] != "*":
+        if subdomain not in route['subdomain'] and "*" not in route['subdomain']:
             server.trans.write(self.construct_response("Not Found",
                 error_body=f"<p>This subdomain route doesn't exist</p>"
                 ))

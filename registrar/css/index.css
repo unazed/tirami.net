@@ -1,0 +1,30 @@
+div#auth_form {
+  display: flex;
+  flex-direction: column;
+  margin: 1em;
+}
+
+div#auth_form input:first-child {
+  margin-bottom: 4px;
+}
+
+input#submit {
+  margin-top: 8px;
+  width: fit-content;
+  padding: 4px;
+  background: none;
+  border: 1px solid rgba(0, 0, 0, 0.4);
+}
+
+input[type='text'], input[type='password'] {
+  padding: 4px;
+}
+
+.notif {
+  position: absolute;
+  z-index: 1000;
+  margin: 1rem;
+  padding: 1em;
+  right: 0;
+  top: 0;
+}

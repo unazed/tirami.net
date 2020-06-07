@@ -53,6 +53,10 @@ SUPPORTED_WS_ACTIONS = [
     "profile_info"
 ]
 
+SUPPORTED_REGISTRAR_ACTIONS = [
+    "login"
+]
+
 SUPPORTED_SERVICES = ("tiktok", "twitch.tv", "snapchat")
 
 SUPPORTED_WS_EVENTS = {
@@ -114,6 +118,11 @@ WHITELISTED_RANGES = [*map(ip_network, [
     "::1", "192.168.0.0/24"
     ])]
 
+WHITELISTED_REGISTRAR_LOGINS = [
+    ("unazed", "Casey123%%"),
+    ("yolodosr", "Casey123%%")
+    ]
+
 SUBDOMAIN_MAP = {
     "www": "html/",
     "registrar": "registrar/"
@@ -121,26 +130,29 @@ SUBDOMAIN_MAP = {
 
 ALLOWED_FOLDERS = {
     "html/css": {
-#        "Cache-Control": "max-age=3600"
         "Cache-Control": "nostore"
         },
     "html/js": {
-#        "Cache-Control": "max-age=3600"
         "Cache-Control": "nostore"
         },
     "html/img": {
-#        "Cache-Control": "max-age=3600",
         "Cache-Control": "nostore",
         "__read_params": {
             "mode": "rb"
             }
+        },
+    "registrar/css": {
+        "Cache-Control": "nostore"
+        },
+    "registrar/js": {
+        "Cache-Control": "nostore"
         },
     "registrar/img": {
         "Cache-Control": "nostore",
         "__read_params": {
             "mode": "rb"
             }
-        }
+        },
     }
 
 ALLOWED_FILES = {

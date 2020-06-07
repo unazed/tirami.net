@@ -41,7 +41,7 @@ async def snapchat(client, usernames, callback, id):
     retry = current = 0
     total = len(usernames)
     async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(
-                use_dns_cache=False, verify=False
+                use_dns_cache=False, verify_ssl=False
             )) as session:
         while usernames:
             if not retry:
@@ -74,7 +74,7 @@ async def snapchat(client, usernames, callback, id):
                         "xsrf_token": xsrf
                     }) as res:
                 try:
-                    results[username] = (await res.json())['reference']['status_code'] == "TAKEN"
+                    results[username] = (await res.json())['reference']['status_code'] != "OK"
                     GLOBAL_CACHE[username] = (time.time(), results[username])
                 except Exception as exc:
                     service_notify(client, f"[snapchat#{id}] retrying {username}")

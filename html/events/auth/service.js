@@ -21,5 +21,6 @@ $("#main_container").empty().append(
       id: "service-output",
       disabled: "disabled"
     }).addClass("form-control")
+      .css("font-size", "12px")
   ).addClass("d-flex border")
 );

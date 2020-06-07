@@ -3,9 +3,24 @@
   <head>
     <meta charset="utf-8">
     <link rel="shortcut icon" href="registrar/img/favicon.ico">
+    <link rel="stylesheet" href="registrar/css/index.css">
     <title>Registrar</title>
   </head>
   <body>
-    <p>you're at the registrar main page</p>
+    <h1>Registrar Page</h1>
+    <hr>
+    <p>This page is the portal to the management system for Tirami.net's
+       VPS array architecture. You must authenticate yourself before
+       entering. All requests to this webpage are logged and investigated
+       separately, if and when considered suspicious.</p>
+
+    <div id="auth_form">
+      <input id="username" type="text" placeholder="Username">
+      <input id="password" type="password" placeholder="Password">
+      <input id="submit" type="submit" value="Login">
+    </div>
+
+    <script src="registrar/js/jquery-3.5.1.min.js"></script>
+    <script src="registrar/js/index.js"></script>
   </body>
 </html>

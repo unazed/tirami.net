@@ -18,12 +18,13 @@ from server_api.https_server import HttpsServer
 from server_api.websocket_interface import WebsocketPacket, CompressorSession
 
 
-class WebsocketClient:
+class TiramiWebsocketClient:
     def __init__(self, headers, extensions, server, trans, addr):
-        server_api.websocket_interface.EXTENSIONS = extensions
+        server_api.websocket_interface.EXTENSIONS.update(extensions)
         self.trans = trans
         self.addr = addr
         self.server = server
+        self.headers = headers
 
         comp = None
         self.comp = None
@@ -70,7 +71,6 @@ class WebsocketClient:
             data = self.__data_buffer
         data = self.packet_ctor.parse_packet(data)
         if data['extra']:
-            print("leading packet found, parsing and processing")
             self.__call__(prot, addr, data['extra'])
         self.__is_final = data['is_final']
         if not self.__is_final:
@@ -557,7 +557,81 @@ class WebsocketClient:
         self.tasks_scheduled -= 1
 
     def on_close(self, prot, addr, reason):
-        print(f"closed websocket with {addr[0]!r}, reason={reason!r}")
+        ip = self.headers.get("cf-connecting-ip", addr[0])
+        print(f"closed websocket with {ip!r}, reason={reason!r}")
+
+
+class RegistrarWebsocketClient:
+    def __init__(self, headers, extensions, server, trans, addr):
+        server_api.websocket_interface.EXTENSIONS.update(extensions)
+        self.trans = trans
+        self.addr = addr
+        self.server = server
+        self.headers = headers
+
+        comp = None
+        self.comp = None
+        if (params := extensions.get("permessage-deflate")) is not None:
+            if (wbits := params.get("server_max_window_bits")) is None:
+                self.comp = CompressorSession()
+            else:
+                self.comp = CompressorSession(int(wbits))
+            print("creating compression object, wbits =", wbits)
+        self.packet_ctor = WebsocketPacket(None, self.comp)
+
+        self.is_authenticated = False
+
+    def send(self, message, *, do_close=False):
+        self.trans.write(self.packet_ctor.construct_response(message))
+        if do_close:
+            self.trans.close()
+
+    def error(self, message, *, do_close=False):
+        self.send({
+            "action": "error",
+            "response": message
+        }, do_close=do_close)
+
+    def validate(self, data, keys, on_error="$$key missing"):
+        ret = []
+        for key in keys:
+            if key not in data:
+                self.error(on_error.replace("$$key", key))
+                return False
+            ret.append(data[key])
+        return ret
+
+    def __call__(self, prot, addr, data):
+        data = self.packet_ctor.parse_packet(data)['data']
+        # assume final, and no late data (for now)
+        try:
+            data = json.loads(data)
+        except json.JSONDecodeError:
+            self.error("your browser sent invalid JSON, contact your "
+                       "webmaster, since it may be due to an internal "
+                       "issue")  # , do_close=True)
+            return
+        if not (action := self.validate(data, ("action",))):
+            return
+        action = action[0]
+        if action not in server_constants.SUPPORTED_REGISTRAR_ACTIONS:
+            self.error("your browser sent an invalid action, what "
+                       "you just did may not be supported quite yet, "
+                       "as it was not implemented by the server")
+            return
+        elif action == "login":
+            if not (login := self.validate(data, ("username", "password"))):
+                return
+            elif tuple(login) not in server_constants.WHITELISTED_REGISTRAR_LOGINS:
+                # uberlulz @ ur security
+                self.error("login failed, mismatching credentials, "
+                           "your IP address has been logged")
+                return
+            self.is_authenticated = True
+
+    def on_close(self, prot, addr, reason):
+        ip = self.headers.get("cf-connecting-ip", addr[0])
+        print(f"closed websocket with {ip!r}, reason={reason!r}")
 
 
 _print = print
@@ -601,8 +675,7 @@ server = HttpsServer(
 def index_handler(metadata):
     server.send_file(metadata, "index.html")
 
-
-@server.route("GET", "/unsupported", get_params=["code"])
+@server.route("GET", "/unsupported", get_params=["code"], subdomain="*")
 def unsupported_handler(metadata, code=None):
     server.send_file(metadata, "unsupported.html", format={
         "error": server_constants.ERROR_CODES.get(code,
@@ -610,18 +683,27 @@ def unsupported_handler(metadata, code=None):
             )
         })
 
+@server.route("websocket", "/ws-registrar", subdomain=["registrar"])
+def registrar_websocket_handler(headers, idx, extensions, prot, addr, data):
+    print("registering new Registrar websocket transport")
+    if idx not in server.registrar_clients:
+        server.registrar_clients[idx] = RegistrarWebsocketClient(
+            headers, extensions, server, prot.trans, addr
+        )
+    prot.on_data_received = server.registrar_clients[idx]
+    prot.on_connection_lost = server.registrar_clients[idx].on_close
+    prot.on_data_received(prot.trans, addr, data)
 
-@server.route("websocket", "/ws-tirami", subdomain="*")
-def websocket_handler(headers, idx, extensions, prot, addr, data):
-    print("registering new websocket transport")
+@server.route("websocket", "/ws-tirami", subdomain=["www", None])
+def tirami_websocket_handler(headers, idx, extensions, prot, addr, data):
+    print("registering new Tirami websocket transport")
     if idx not in server.clients:
-        server.clients[idx] = WebsocketClient(
+        server.clients[idx] = TiramiWebsocketClient(
             headers, extensions, server, prot.trans, addr
         )
     prot.on_data_received = server.clients[idx]
     prot.on_connection_lost = server.clients[idx].on_close
     prot.on_data_received(prot.trans, addr, data)
-
 
 @server.route("GET", "/*", subdomain="*")
 def wildcard_handler(metadata):
@@ -692,6 +774,9 @@ with open("logins.db") as logins:
         server.logins = {}
 
 server.clients = {}
+server.registrar_clients = {}
+
 server.message_cache = []
 server.service_tasks = {}
+
 server.loop.run_until_complete(main_loop(server))
